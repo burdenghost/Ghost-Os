@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.ghostos.mobile"
-    compileSdk = 37
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.ghostos.mobile"
