@@ -56,6 +56,7 @@ fun GhostHomeScreen() {
     var session by remember { mutableStateOf<RuntimeSession?>(null) }
     var busy by remember { mutableStateOf(false) }
     var showLogs by remember { mutableStateOf(false) }
+    var showTools by remember { mutableStateOf(false) }
     var logText by remember { mutableStateOf(DiagnosticsStore.read(context)) }
     var progress by remember { mutableStateOf("") }
     var lines by remember {
@@ -87,6 +88,29 @@ fun GhostHomeScreen() {
 
     fun append(text: String, kind: TerminalLine.Kind = TerminalLine.Kind.OUTPUT) {
         lines = lines + TerminalLine(text, kind)
+    }
+
+    fun installSecurityTool(tool: SecurityTool) {
+        if (!tool.installable) return
+        scope.launch {
+            busy = true
+            try {
+                val active = session ?: runtime.startSession().also {
+                    session = it
+                    runtimeStatus = runtime.status()
+                }
+                val command = "apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends " + tool.packages.joinToString(" ")
+                DiagnosticsStore.append(context, "TOOL install requested: ${tool.id}; command=$command")
+                active.write(command + "\n")
+                showTools = false
+                append("Installing ${tool.name} inside rootless Debian…", TerminalLine.Kind.SYSTEM)
+            } catch (error: Exception) {
+                append("Could not start tool installation: ${error.message}", TerminalLine.Kind.ERROR)
+                DiagnosticsStore.append(context, "TOOL install error ${tool.id}: ${error.stackTraceToString()}")
+            } finally {
+                busy = false
+            }
+        }
     }
 
     fun runBootstrapCommand() {
@@ -229,7 +253,10 @@ fun GhostHomeScreen() {
         }
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { showLogs = !showLogs; logText = DiagnosticsStore.read(context) }) {
+            TextButton(onClick = { showTools = !showTools; showLogs = false }) {
+                Text(if (showTools) "CLOSE TOOLS" else "SECURITY TOOLS", color = Green, fontWeight = FontWeight.Bold)
+            }
+            TextButton(onClick = { showLogs = !showLogs; showTools = false; logText = DiagnosticsStore.read(context) }) {
                 Text(if (showLogs) "CLOSE LOGS" else "VIEW LOGS", color = Green, fontWeight = FontWeight.Bold)
             }
         }
@@ -242,7 +269,25 @@ fun GhostHomeScreen() {
         )
         Spacer(Modifier.height(8.dp))
 
-        if (showLogs) {
+        if (showTools) {
+            LazyColumn(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                item { Text("TOOLS RUN INSIDE THE PRIVATE DEBIAN GUEST. ANDROID ROOT IS NOT USED.", color = Muted, fontSize = 10.sp, lineHeight = 15.sp) }
+                items(SecurityToolCatalog.all) { tool ->
+                    Surface(Modifier.fillMaxWidth(), color = Panel, shape = RoundedCornerShape(12.dp)) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(tool.name, color = Output, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                Text(if (tool.installable) "ARM64 / APT" else "REVIEW", color = if (tool.installable) Green else Muted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text(tool.description, color = Muted, fontSize = 11.sp, lineHeight = 15.sp)
+                            if (tool.installable) {
+                                Button(onClick = { installSecurityTool(tool) }, enabled = !busy && runtimeStatus != RuntimeStatus.NOT_INSTALLED && runtimeStatus != RuntimeStatus.INSTALLING, modifier = Modifier.align(Alignment.End)) { Text("INSTALL IN DEBIAN") }
+                            } else Text("Not enabled until ARM64 dependencies and permissions are verified.", color = Muted, fontSize = 10.sp)
+                        }
+                    }
+                }
+            }
+        } else if (showLogs) {
             Surface(Modifier.weight(1f).fillMaxWidth(), color = Panel, shape = RoundedCornerShape(14.dp)) {
                 LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     item {
