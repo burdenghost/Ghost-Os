@@ -114,13 +114,13 @@ fun GhostWorkspaceScreen() {
                             Icon(
                                 imageVector = when (item) {
                                     WorkspacePage.HOME -> Icons.Default.Home
-                                    WorkspacePage.TERMINAL -> Icons.Default.Terminal
+                                    WorkspacePage.TERMINAL -> Icons.Default.Code
                                     WorkspacePage.SECURITY -> Icons.Default.Security
                                     WorkspacePage.NETWORK -> Icons.Default.Wifi
                                     WorkspacePage.OSINT -> Icons.Default.Search
                                     WorkspacePage.FILES -> Icons.Default.Folder
-                                    WorkspacePage.PACKAGES -> Icons.Default.Inventory2
-                                    WorkspacePage.AI -> Icons.Default.Psychology
+                                    WorkspacePage.PACKAGES -> Icons.Default.Build
+                                    WorkspacePage.AI -> Icons.Default.Star
                                     WorkspacePage.SETTINGS -> Icons.Default.Settings
                                 },
                                 contentDescription = null,
