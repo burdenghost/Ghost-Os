@@ -4,7 +4,7 @@ Status: API-24 compatibility is intentionally dropped; modern Android ARM64 is n
 
 ## Decision
 
-Ghost OS now targets Android 9 / API 28 and newer. This matches the current upstream `oonid/pr` `proot-engine` and `session-core` minimum SDK declarations. Direct integration is still gated on toolchain alignment, source pinning, licensing, ABI packaging, and runtime tests.
+Ghost OS now targets Android 9 / API 28 and newer, matching the upstream engine modules. The source is pinned and included as Gradle projects; Ghost OS now has a host adapter and UI path for Debian installation and PTY sessions. The integration is committed but remains unverified until CI produces an APK and on-device tests pass.
 
 Do not lower upstream minimum SDK declarations as a cosmetic workaround. Android 9+ is the supported product baseline; older Android versions are out of scope.
 
@@ -21,7 +21,7 @@ Do not lower upstream minimum SDK declarations as a cosmetic workaround. Android
 ## Android compatibility blockers
 
 - Both `proot-engine` and `session-core` currently declare `minSdk = 28`.
-- Upstream currently builds with `compileSdk = 37` and Java 17; Ghost OS has been moved to AGP 9.4.1, Gradle 9.8.2, Kotlin 2.4.21, JDK 17, compileSdk 37, and upstream NDK r27c. Integration still requires validating the upstream modules against this exact toolchain.
+- Upstream currently builds with `compileSdk = 37` and Java 17; Ghost OS now matches upstream's AGP 9.4.1, Gradle 9.8.2, Kotlin 2.4.21, JDK 17, and compileSdk 37. CI installs NDK r27c and CMake 3.22.1. The combined build remains to be verified.
 - Upstream documents Android-specific W^X, SELinux, and seccomp behavior and a PROOT_LOADER mechanism. These behaviors must be tested in Ghost OS's own application process; command success under `run-as` is not sufficient evidence.
 - The engine is ARM64-focused. Ghost OS must detect unsupported ABIs and fail clearly rather than attempting to run incompatible binaries.
 
