@@ -49,8 +49,11 @@ class GhostProotRuntime(context: Context) : LinuxRuntime {
         RuntimeSession(UUID.randomUUID().toString(), "/", session) { activeSession.compareAndSet(session, null) }
     }
 
-    override suspend fun stop() = withContext(Dispatchers.IO) {
-        activeSession.getAndSet(null)?.close()
+    override suspend fun stop() {
+        withContext(Dispatchers.IO) {
+            activeSession.getAndSet(null)?.close()
+            Unit
+        }
     }
 
     override fun status(): RuntimeStatus = when {
