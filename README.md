@@ -1,48 +1,49 @@
 # Ghost OS — Mobile Linux Workstation
 
-**Status:** 0.2.0-alpha / modern Android ARM64 target  
+**Status:** 0.3.0-alpha / PRoot integration in progress  
 **Minimum Android:** 9.0 (API 28)  
-**Build toolchain:** Android Gradle Plugin 9.5.0, Gradle 9.6.0, Kotlin 2.4.10, JDK 17, compileSdk 37  
-**Runtime direction:** standalone Android host + isolated Debian userspace + PTY + modular tooling + hybrid AI
+**Build toolchain:** AGP 9.4.1, Gradle 9.8.2, Kotlin 2.4.21, JDK 17, compileSdk 37  
+**Runtime:** pinned ARM64 PRoot engine + Debian stable + native PTY
 
-Ghost OS is an independent Android Linux workstation. It is not based on Termux and does not require Termux. The project now prioritizes current Android devices and a modern native runtime rather than legacy Android support.
+Ghost OS is an independent Android Linux workstation. It is not based on Termux and does not require Termux. It targets modern Android ARM64 devices.
 
-> This is still an alpha. The current app has a safe bootstrap terminal and a runtime contract, but a working Debian rootfs, PRoot integration, package manager, hybrid AI provider adapters, and security-tool execution must not be considered complete until implemented and tested on-device.
+> The dashboard is now connected to a real Debian installation path and PTY-backed PRoot session adapter. The integration has not yet passed a complete CI build or on-device test, so do not treat Debian execution as verified until the build and acceptance tests pass.
 
-## Build requirements
+## Build
 
 - JDK 17
 - Android SDK Platform 37 and Build Tools 36.0.0
-- Android NDK 28.2.13676358
-- Android Gradle Plugin 9.5.0
-- Gradle 9.6.0
-- Kotlin 2.4.10 with the Compose compiler Gradle plugin
-- ARM64 (`arm64-v8a`) device/runtime target
+- Android Gradle Plugin 9.4.1 and Gradle 9.8.2
+- Kotlin 2.4.21 with the Compose compiler Gradle plugin
+- Android NDK r27c for the upstream native PRoot and Rust CLI build
+- ARM64 (`arm64-v8a`) target
 
-The Gradle distribution is pinned to 9.8.2. The upstream PRoot source is pinned as a Git submodule under `third_party/pr`; initialize nested submodules before building. The first native build currently requires Linux x86_64, Rust stable with the `aarch64-linux-android` target, Android SDK, and NDK r27c. Run `bash scripts/build-runtime.sh`, then build `:app:assembleDebug`. The GitHub Actions workflow performs this native build and publishes the debug APK as an artifact. AndroidIDE on-device builds cannot compile the upstream native toolchain directly; use the CI artifact until an Android-host native build path is implemented.
+Initialize the pinned runtime and nested vendor submodules, then build the native binaries on Linux x86_64:
 
-## Android compatibility
+```bash
+git submodule update --init --recursive
+bash scripts/build-runtime.sh
+gradle :app:assembleDebug
+```
 
-Ghost OS now requires Android 9 / API 28 or newer. This matches the current minimum declared by the selected upstream PRoot engine and session modules. It does not yet mean every Android 9+ device is verified: native PRoot behavior, target-SDK restrictions, SELinux, seccomp, storage, and 16 KB page-size compatibility still require real-device testing.
+The GitHub Actions workflow performs this build and uploads `ghost-os-debug-apk`. AndroidIDE on-device builds cannot run the upstream Linux x86_64 native build scripts; use the CI artifact until an Android-host native build path is available.
 
-`targetSdk` remains 35 until the native loader path is validated against newer target levels. `compileSdk` is 37 so the app can build against the current Android platform APIs.
+## Architecture
 
-## Project structure
+- `app/` — Ghost OS native Android host and Compose dashboard
+- `app/src/main/java/.../core/runtime/` — `LinuxRuntime` contract, Debian installer adapter, and PTY session wrapper
+- `third_party/pr/` — pinned upstream PRoot engine source (submodule)
+- `:proot-engine`, `:session-core`, `:termlib` — upstream Android libraries
+- `docs/` — architecture, roadmap, compatibility, and security decisions
 
-- `app/` — native Android host and Compose interface
-- `app/src/main/java/.../core/terminal/` — safe bootstrap command router
-- `app/src/main/java/.../core/runtime/` — engine-independent Linux runtime contract
-- `docs/` — architecture, roadmap, runtime compatibility, and security model
-- `tooling/catalog/` — reviewed tool manifest schema
+## Runtime behavior
 
-## Security and licensing
+Debian is installed into app-private storage. `pr-cli` runs through the upstream process runner, and the terminal session uses the native PTY bridge. No arbitrary Android host-shell fallback is provided. PRoot is not a VM or hardened security boundary; Android's app sandbox remains the outer boundary.
 
-PRoot is not a virtual machine or a hardened security boundary. Android's application sandbox remains the outer boundary. Build native components from pinned source; do not blindly redistribute upstream binaries. Preserve GPL notices and corresponding source obligations for GPL-covered PRoot/pr-cli components. Never fall back to arbitrary host-shell execution. Cloud AI remains opt-in and provider secrets must be protected by Android Keystore-backed encryption.
+## Licensing
 
-## Runtime source integration
+The upstream project is multi-license: Android libraries are MIT; patched PRoot is GPL-2.0-or-later; `pr-cli` is GPL-3.0-or-later; vendor submodules have their own notices. Preserve copyright notices and provide corresponding source as required before distributing binaries. Review `third_party/pr/LICENSE` and nested vendor license files.
 
-The pinned upstream engine is `oonid/pr` at commit `7029b1fe8fa84d64339cabe38f9c5be2ea2ae7ac`. Ghost OS includes the upstream `:proot-engine`, `:session-core`, and `:termlib` modules as Gradle projects. The upstream Android application UI is not imported; Ghost OS retains its own interface and runtime boundary. Nested vendor submodules are required for native builds. Review `third_party/pr/LICENSE` and upstream notices before redistribution.
+## Next acceptance gate
 
-## Current engineering priority
-
-Integrate the upstream ARM64 PRoot engine behind `LinuxRuntime`, pin its source commit, satisfy license obligations, and pass real-process tests for Debian installation, PTY sessions, cancellation, package management, and process cleanup before enabling the Linux-ready state.
+Build the native engine and APK in CI; install on a modern Samsung ARM64 device; install Debian; verify `uname -a`, `id`, `pwd`, `apt update`, PTY resize, Ctrl-C, cancellation, process cleanup, app restart persistence, DNS, and 16 KB page-size compatibility. Until those pass, the runtime remains alpha.
