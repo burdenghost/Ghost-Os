@@ -10,6 +10,16 @@ import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicReference
 
+interface LinuxRuntime {
+    suspend fun installDistribution(distribution: Distribution, onProgress: (Int, String) -> Unit)
+    suspend fun startSession(): RuntimeSession
+    suspend fun stop()
+    fun status(): RuntimeStatus
+}
+
+enum class Distribution { DEBIAN_STABLE }
+enum class RuntimeStatus { NOT_INSTALLED, INSTALLING, READY, RUNNING, FAILED }
+
 /** PRoot-backed Debian runtime. All guest execution stays inside the app-private prefix. */
 class GhostProotRuntime(context: Context) : LinuxRuntime {
     private val host = context.applicationContext as GhostApplication
@@ -56,8 +66,11 @@ class RuntimeSession internal constructor(
     private val delegate: ProotLauncher.Session,
     private val onClose: () -> Unit,
 ) : AutoCloseable {
-    fun read(buffer: ByteArray, offset: Int = 0, length: Int = buffer.size): Int =
-        delegate.read(buffer, offset, length)
+    fun read(buffer: ByteArray, offset: Int = 0, length: Int = buffer.size): Int {
+        val count = delegate.read(buffer, offset, length)
+        if (count < 0) close()
+        return count
+    }
 
     fun write(bytes: ByteArray): Int = delegate.write(bytes)
     fun write(text: String): Int = write(text.toByteArray(Charsets.UTF_8))
