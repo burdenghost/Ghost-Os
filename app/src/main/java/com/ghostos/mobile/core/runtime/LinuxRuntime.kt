@@ -29,8 +29,8 @@ class GhostProotRuntime(context: Context) : LinuxRuntime {
 
     // pr-cli's current OCI installer stores images under containers/<name>/rootfs.
     // Keep the legacy path too so installations made by older pr-cli layouts remain usable.
-    private val legacyRootfs = File(host.prefixDir, "var/lib/pr/installed-rootfs/debian")
-    private val ociRootfs = File(host.prefixDir, "var/lib/pr/containers/debian/rootfs")
+    private val legacyRootfs = File(host.prefixDir, "var/lib/proot/installed-roots/debian")
+    private val ociRootfs = File(host.prefixDir, "var/lib/proot/containers/debian/rootfs")
 
     private fun hasInstalledRootfs(): Boolean =
         legacyRootfs.isDirectory || ociRootfs.isDirectory
