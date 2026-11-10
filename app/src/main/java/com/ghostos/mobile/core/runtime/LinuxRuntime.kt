@@ -33,7 +33,14 @@ class GhostProotRuntime(context: Context) : LinuxRuntime {
         withContext(Dispatchers.IO) {
             onProgress(0, "Preparing private Linux environment")
             val exit = cli.run(listOf("install", "debian"), onLine = { line -> onProgress(5, line) })
-            check(exit == 0 && rootfs.isDirectory) { "Debian installation failed (exit $exit). Check the install log and available storage." }
+            onProgress(95, "Validating Debian root filesystem")
+            val rootfsExists = rootfs.exists()
+            val rootfsIsDirectory = rootfs.isDirectory
+            check(exit == 0 && rootfsIsDirectory) {
+                "Debian installation validation failed: pr-cli exit=$exit; " +
+                    "rootfs exists=$rootfsExists; rootfs is directory=$rootfsIsDirectory; " +
+                    "expected location=${rootfs.absolutePath}"
+            }
             onProgress(100, "Debian stable installed")
         }
     }
