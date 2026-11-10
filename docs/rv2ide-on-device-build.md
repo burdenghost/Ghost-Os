@@ -42,11 +42,11 @@ A successful resource-processing step confirms AAPT2 is running; it does not by 
 
 ## Debian OCI download diagnostics
 
-The PRoot source is a Git submodule, so Ghost-Os cannot directly commit edits to its upstream source repository. The helper script in this repository applies the detailed Rust error formatting locally to the submodule source. Run it from the Ghost-Os repository root after initializing the submodule:
+The PRoot source is maintained in the `burdenghost/pr` fork, and the Ghost-Os submodule now points to that fork. The OCI downloader reports the full Rust error chain for Docker Hub blob downloads, making the underlying transport failure visible. After pulling the updated Ghost-Os branch, refresh the submodule with:
 
 ```bash
+git submodule sync --recursive
 git submodule update --init --recursive
-bash scripts/patch-pr-oci-diagnostics.sh
 ```
 
-Then rebuild the app and retry Debian installation. This change exposes the underlying transport error chain for Docker Hub blob downloads; it is diagnostic only and does **not** itself fix a network, TLS, DNS, or registry failure.
+Rebuild the app and retry Debian installation. This is a diagnostic improvement; it does **not** by itself resolve a network, TLS, DNS, or registry failure.
