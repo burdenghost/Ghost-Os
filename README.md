@@ -2,7 +2,7 @@
 
 **Status:** 0.3.0-alpha / PRoot integration in progress  
 **Minimum Android:** 9.0 (API 28)  
-**Build toolchain:** AGP 9.4.1, Gradle 9.8.2, Kotlin 2.4.21, JDK 17, compileSdk 36  
+**Build toolchain:** AGP 9.4.1, Gradle 9.8.2, Kotlin 2.4.21, JDK 17, compileSdk 37  
 **Runtime:** pinned ARM64 PRoot engine + Debian stable + native PTY
 
 Ghost OS is an independent Android Linux workstation. It is not based on Termux and does not require Termux. It targets modern Android ARM64 devices.
@@ -12,7 +12,7 @@ Ghost OS is an independent Android Linux workstation. It is not based on Termux 
 ## Build
 
 - JDK 17
-- Android SDK Platform 36 and Build Tools 36.0.0
+- Android SDK Platform 37 and Build Tools 36.0.0
 - Android Gradle Plugin 9.4.1 and Gradle 9.8.2
 - Kotlin 2.4.21 with the Compose compiler Gradle plugin
 - Android NDK r27c for the upstream native PRoot and Rust CLI build
@@ -26,7 +26,7 @@ bash scripts/build-runtime.sh
 gradle :app:assembleDebug
 ```
 
-The GitHub Actions workflow performs this build and uploads `ghost-os-debug-apk`. AndroidIDE on-device builds cannot run the upstream Linux x86_64 native build scripts; use the CI artifact until an Android-host native build path is available.
+The GitHub Actions workflow performs this build and uploads `ghost-os-debug-apk`. AndroidIDE/RV2IDE on-device builds require an Android/ARM64-compatible AAPT2 binary and the IDE-installed CMake; see [RV2IDE on-device build notes](docs/rv2ide-on-device-build.md). The upstream native build scripts still target Linux x86_64, so CI remains the supported full native build until an Android-host native build path is available.
 
 ## Architecture
 
