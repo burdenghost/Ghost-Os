@@ -7,7 +7,6 @@ plugins {
 android {
     namespace = "com.ghostos.mobile"
     compileSdk = 37
-    ndkVersion = "27.2.12479018"
 
     defaultConfig {
         applicationId = "com.ghostos.mobile"
@@ -34,21 +33,17 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlin {
-        compilerOptions {
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-        }
-    }
-
     buildFeatures { compose = true }
-
-    externalNativeBuild {
-        cmake { version = "3.22.1" }
-    }
 
     packaging {
         jniLibs { useLegacyPackaging = true }
         resources { excludes += setOf("/META-INF/AL2.0", "/META-INF/LGPL2.1") }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 
