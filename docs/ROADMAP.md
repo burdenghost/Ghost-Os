@@ -1,20 +1,22 @@
 # Ghost OS roadmap
 
-## Milestone 0 — Bootstrap alpha
+## Milestone 0 — Modern Android bootstrap
 - [x] Native Android project skeleton and Compose dashboard
 - [x] Safe built-in terminal prototype
-- [x] Android 7 / API 24 minimum target
+- [x] Drop legacy Android support; set minimum Android 9 / API 28
 - [x] Successful on-device debug build reported by project owner
-- [x] Kotlin 1.7.20 + Compose Compiler 1.3.2 compatibility correction
+- [x] Upgrade to AGP 9.5.0 / Gradle 9.6.0 / Kotlin 2.4.10 / JDK 17
 - [x] Import alpha source tree into this repository
-- [ ] Gradle wrapper and CI build
+- [x] Pin Gradle 9.6.0 wrapper distribution
+- [ ] Add wrapper scripts/JAR and CI build
 
 ## Milestone 1 — Linux runtime foundation
-- [ ] Select and license-review a maintained ARM64 rootless runtime engine
+- [ ] Pin and integrate maintained ARM64 PRoot engine as a source dependency
+- [ ] Complete GPL/MIT license inventory and third-party notices
 - [ ] Add verified Debian rootfs manifest and downloader
 - [ ] Safe extraction, disk checks, install progress, cancellation, recovery
 - [ ] Runtime lifecycle and status persistence
-- [ ] API/device compatibility tests
+- [ ] Android 9+ device matrix, target-SDK 35 runtime tests, and 16 KB page-size validation
 
 ## Milestone 2 — Interactive workstation
 - [ ] PTY-backed multi-session terminal
