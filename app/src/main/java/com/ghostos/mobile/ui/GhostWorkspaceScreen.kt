@@ -380,7 +380,7 @@ private fun ToolWorkspacePage(page: WorkspacePage, onOpenTerminal: () -> Unit) {
 private fun EmptyWorkspace(
     title: String, detail: String, action: String, enabled: Boolean, onAction: () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().weight(1f).padding(18.dp),
+    Column(Modifier.fillMaxWidth().heightIn(min = 220.dp).padding(18.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Text(title, color = WorkspaceGreen, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
         Text(detail, color = WorkspaceMuted, fontSize = 12.sp, lineHeight = 18.sp)
@@ -397,7 +397,7 @@ private fun TerminalPane(session: RuntimeSession, visible: Boolean, modifier: Mo
             initialCols = 80,
             defaultForeground = WorkspaceText,
             defaultBackground = Color.Black,
-            onKeyboardInput = { bytes -> if (visible) scope.launch(Dispatchers.IO) { session.write(bytes) } },
+            onKeyboardInput = { bytes -> scope.launch(Dispatchers.IO) { session.write(bytes) } },
             onResize = { dimensions ->
                 scope.launch(Dispatchers.IO) { session.resize(dimensions.rows, dimensions.columns) }
             },
