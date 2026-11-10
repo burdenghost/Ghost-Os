@@ -27,21 +27,17 @@
 - [ ] Editor, Git, SSH, Python and compiler toolchains
 - [ ] Backup, reset and update flows
 
-## Milestone 3 — Hybrid AI
-- [ ] Offline help and diagnostics engine
-- [ ] Provider-neutral adapter interface
-- [ ] Optional cloud provider setup
-- [ ] Keystore-backed secret storage
-- [ ] Confirmation and audit trail for tool execution
+## Deferred — AI integration
+AI features are intentionally excluded from the current build. No AI broker, provider adapters, model downloads, or AI command execution will be added until the Linux workstation foundation is stable.
 
-## Milestone 4 — Security and OSINT
+## Milestone 3 — Security and OSINT
 - [ ] Tool manifest review and source/license verification
 - [ ] OSINT and defensive network modules
 - [ ] Compatibility review for Nmap and Metasploit
 - [ ] Lab-only workflows, scope confirmation and audit logging
 - [ ] Honest labels for root/kernel/USB/Wi-Fi monitor-mode requirements
 
-## Milestone 5 — Release engineering
+## Milestone 4 — Release engineering
 - [ ] Signed release builds, SBOM and third-party notices
 - [ ] Android 9+ device matrix and 16 KB page-size testing
 - [ ] Accessibility, localization, crash and performance testing
