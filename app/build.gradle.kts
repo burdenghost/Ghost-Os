@@ -1,18 +1,24 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.ghostos.mobile"
-    compileSdk = 33
+    compileSdk = 37
+    ndkVersion = "28.2.13676358"
+
     defaultConfig {
         applicationId = "com.ghostos.mobile"
-        minSdk = 24
-        targetSdk = 33
-        versionCode = 1
-        versionName = "0.1.0-alpha"
+        minSdk = 28
+        // Keep targetSdk 35 until the PRoot loader path is validated on newer target levels.
+        targetSdk = 35
+        versionCode = 2
+        versionName = "0.2.0-alpha"
+        ndk { abiFilters += listOf("arm64-v8a") }
     }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -23,29 +29,36 @@ android {
             versionNameSuffix = "-debug"
         }
     }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "11" }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
+
     buildFeatures { compose = true }
-    composeOptions {
-        // Compose Compiler 1.3.2 requires Kotlin 1.7.20.
-        kotlinCompilerExtensionVersion = "1.3.2"
-    }
-    packagingOptions {
+
+    packaging {
+        jniLibs { useLegacyPackaging = true }
         resources { excludes += setOf("/META-INF/AL2.0", "/META-INF/LGPL2.1") }
     }
 }
 
 dependencies {
-    implementation(platform("androidx.compose:compose-bom:2022.10.00"))
-    androidTestImplementation(platform("androidx.compose:compose-bom:2022.10.00"))
-    implementation("androidx.activity:activity-compose:1.6.1")
+    implementation(platform("androidx.compose:compose-bom:2026.09.00"))
+    implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3:1.0.1")
+    implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.5.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    testImplementation("junit:junit:4.13.2")
 }
