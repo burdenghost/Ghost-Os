@@ -5,6 +5,8 @@
     <application
         android:name=".GhostApplication"
         android:allowBackup="false"
+        android:icon="@drawable/ghost_logo"
+        android:roundIcon="@mipmap/ic_launcher"
         android:label="Ghost OS"
         android:supportsRtl="true"
         android:theme="@style/Theme.GhostOS">
