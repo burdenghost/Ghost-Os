@@ -23,7 +23,6 @@ enum class RuntimeStatus { NOT_INSTALLED, INSTALLING, READY, RUNNING, FAILED }
 /** PRoot-backed Debian runtime. Each terminal owns an independent PTY session. */
 class GhostProotRuntime(context: Context) : LinuxRuntime {
     private val host = context.applicationContext as GhostApplication
-    private val launcher = ProotLauncher(host)
     private val cli = PrCliCommand(host)
     private val activeSessions = ConcurrentHashMap<String, ProotLauncher.Session>()
     private val rootfs = File(host.prefixDir, "var/lib/pr/installed-rootfs/debian")
@@ -48,7 +47,7 @@ class GhostProotRuntime(context: Context) : LinuxRuntime {
 
     override suspend fun startSession(): RuntimeSession = withContext(Dispatchers.IO) {
         check(rootfs.isDirectory) { "Debian is not installed. Install it first." }
-        val session = launcher.startSession("debian") ?: error("Could not start the Debian PTY session")
+        val session = ProotLauncher(host).startSession("debian") ?: error("Could not start the Debian PTY session")
         val id = UUID.randomUUID().toString()
         check(activeSessions.putIfAbsent(id, session) == null) {
             session.close()
