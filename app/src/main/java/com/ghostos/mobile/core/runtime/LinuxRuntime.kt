@@ -8,7 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.ConcurrentHashMap
 
 interface LinuxRuntime {
     suspend fun installDistribution(distribution: Distribution, onProgress: (Int, String) -> Unit)
@@ -20,16 +20,16 @@ interface LinuxRuntime {
 enum class Distribution { DEBIAN_STABLE }
 enum class RuntimeStatus { NOT_INSTALLED, INSTALLING, READY, RUNNING, FAILED }
 
-/** PRoot-backed Debian runtime. All guest execution stays inside the app-private prefix. */
+/** PRoot-backed Debian runtime. Each terminal owns an independent PTY session. */
 class GhostProotRuntime(context: Context) : LinuxRuntime {
     private val host = context.applicationContext as GhostApplication
-    private val launcher = ProotLauncher(host)
     private val cli = PrCliCommand(host)
-    private val activeSession = AtomicReference<ProotLauncher.Session?>(null)
+    private val activeSessions = ConcurrentHashMap<String, ProotLauncher.Session>()
     private val rootfs = File(host.prefixDir, "var/lib/pr/installed-rootfs/debian")
 
     override suspend fun installDistribution(distribution: Distribution, onProgress: (Int, String) -> Unit) {
         require(distribution == Distribution.DEBIAN_STABLE) { "Only Debian stable is enabled in this alpha." }
+        check(activeSessions.isEmpty()) { "Stop all Linux sessions before installing Debian." }
         withContext(Dispatchers.IO) {
             onProgress(0, "Preparing private Linux environment")
             val exit = cli.run(listOf("install", "debian"), onLine = { line -> onProgress(5, line) })
@@ -47,24 +47,26 @@ class GhostProotRuntime(context: Context) : LinuxRuntime {
 
     override suspend fun startSession(): RuntimeSession = withContext(Dispatchers.IO) {
         check(rootfs.isDirectory) { "Debian is not installed. Install it first." }
-        check(activeSession.get() == null) { "A Linux terminal session is already active." }
-        val session = launcher.startSession("debian") ?: error("Could not start the Debian PTY session")
-        check(activeSession.compareAndSet(null, session)) {
+        val session = ProotLauncher(host).startSession("debian") ?: error("Could not start the Debian PTY session")
+        val id = UUID.randomUUID().toString()
+        check(activeSessions.putIfAbsent(id, session) == null) {
             session.close()
-            "Another Linux session started concurrently."
+            "Could not register the new Linux session."
         }
-        RuntimeSession(UUID.randomUUID().toString(), "/", session) { activeSession.compareAndSet(session, null) }
+        RuntimeSession(id, "/", session) { activeSessions.remove(id, session) }
     }
 
     override suspend fun stop() {
         withContext(Dispatchers.IO) {
-            activeSession.getAndSet(null)?.close()
+            activeSessions.entries.toList().forEach { (id, session) ->
+                if (activeSessions.remove(id, session)) session.close()
+            }
             Unit
         }
     }
 
     override fun status(): RuntimeStatus = when {
-        activeSession.get() != null -> RuntimeStatus.RUNNING
+        activeSessions.isNotEmpty() -> RuntimeStatus.RUNNING
         rootfs.isDirectory -> RuntimeStatus.READY
         else -> RuntimeStatus.NOT_INSTALLED
     }
