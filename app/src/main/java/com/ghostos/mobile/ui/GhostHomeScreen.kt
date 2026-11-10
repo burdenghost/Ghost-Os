@@ -269,7 +269,7 @@ fun GhostHomeScreen() {
                 showSoftKeyboard = true,
                 initialFontSize = 12.sp,
             )
-        } else {
+        } else if (!showLogs) {
             Surface(
                 Modifier.weight(1f).fillMaxWidth(),
                 color = Panel,
