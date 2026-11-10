@@ -26,7 +26,14 @@ class GhostProotRuntime(context: Context) : LinuxRuntime {
     private val launcher = ProotLauncher(host)
     private val cli = PrCliCommand(host)
     private val activeSession = AtomicReference<ProotLauncher.Session?>(null)
-    private val rootfs = File(host.prefixDir, "var/lib/pr/installed-rootfs/debian")
+
+    // pr-cli's current OCI installer stores images under containers/<name>/rootfs.
+    // Keep the legacy path too so installations made by older pr-cli layouts remain usable.
+    private val legacyRootfs = File(host.prefixDir, "var/lib/proot/installed-roots/debian")
+    private val ociRootfs = File(host.prefixDir, "var/lib/proot/containers/debian/rootfs")
+
+    private fun hasInstalledRootfs(): Boolean =
+        legacyRootfs.isDirectory || ociRootfs.isDirectory
 
     override suspend fun installDistribution(distribution: Distribution, onProgress: (Int, String) -> Unit) {
         require(distribution == Distribution.DEBIAN_STABLE) { "Only Debian stable is enabled in this alpha." }
@@ -34,19 +41,19 @@ class GhostProotRuntime(context: Context) : LinuxRuntime {
             onProgress(0, "Preparing private Linux environment")
             val exit = cli.run(listOf("install", "debian"), onLine = { line -> onProgress(5, line) })
             onProgress(95, "Validating Debian root filesystem")
-            val rootfsExists = rootfs.exists()
-            val rootfsIsDirectory = rootfs.isDirectory
-            check(exit == 0 && rootfsIsDirectory) {
+            val legacyExists = legacyRootfs.isDirectory
+            val ociExists = ociRootfs.isDirectory
+            check(exit == 0 && (legacyExists || ociExists)) {
                 "Debian installation validation failed: pr-cli exit=$exit; " +
-                    "rootfs exists=$rootfsExists; rootfs is directory=$rootfsIsDirectory; " +
-                    "expected location=${rootfs.absolutePath}"
+                    "legacy rootfs exists=$legacyExists at ${legacyRootfs.absolutePath}; " +
+                    "OCI rootfs exists=$ociExists at ${ociRootfs.absolutePath}"
             }
             onProgress(100, "Debian stable installed")
         }
     }
 
     override suspend fun startSession(): RuntimeSession = withContext(Dispatchers.IO) {
-        check(rootfs.isDirectory) { "Debian is not installed. Install it first." }
+        check(hasInstalledRootfs()) { "Debian is not installed. Install it first." }
         check(activeSession.get() == null) { "A Linux terminal session is already active." }
         val session = launcher.startSession("debian") ?: error("Could not start the Debian PTY session")
         check(activeSession.compareAndSet(null, session)) {
@@ -65,7 +72,7 @@ class GhostProotRuntime(context: Context) : LinuxRuntime {
 
     override fun status(): RuntimeStatus = when {
         activeSession.get() != null -> RuntimeStatus.RUNNING
-        rootfs.isDirectory -> RuntimeStatus.READY
+        hasInstalledRootfs() -> RuntimeStatus.READY
         else -> RuntimeStatus.NOT_INSTALLED
     }
 }

@@ -1,0 +1,25 @@
+name: Rootless security tool dependency tests
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  arm64-debian-tools:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Ghost OS
+        uses: actions/checkout@v4
+      - name: Enable ARM64 emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+      - name: Run Debian stable ARM64 dependency and smoke tests
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v "$GITHUB_WORKSPACE/scripts/test-security-tools-arm64.sh:/test-tools.sh:ro" \
+            debian:stable-slim bash /test-tools.sh
