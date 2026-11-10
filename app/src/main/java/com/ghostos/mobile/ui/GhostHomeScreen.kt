@@ -5,19 +5,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ghostos.mobile.core.runtime.Distribution
@@ -29,12 +25,23 @@ import com.ghostos.mobile.core.terminal.TerminalLine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.connectbot.terminal.Terminal
+import org.connectbot.terminal.TerminalEmulatorFactory
 
 private val Bg = Color(0xFF080B0D)
 private val Panel = Color(0xFF11171A)
 private val Green = Color(0xFF77E6A5)
 private val Muted = Color(0xFF8B9A92)
+private val Output = Color(0xFFE1EAE4)
 
+/**
+ * Ghost OS home screen.
+ *
+ * Bootstrap mode uses the small safe built-in router. Once Debian is started,
+ * all keyboard input, ANSI/VT sequences, cursor movement, resizing and terminal
+ * output are handled by the upstream ConnectBot terminal emulator rather than
+ * treating a PTY as a plain text log.
+ */
 @Composable
 fun GhostHomeScreen() {
     val context = LocalContext.current
@@ -46,41 +53,59 @@ fun GhostHomeScreen() {
     var session by remember { mutableStateOf<RuntimeSession?>(null) }
     var busy by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf("") }
-    var lines by remember { mutableStateOf(listOf(
-        TerminalLine("GHOST OS // MOBILE WORKSTATION", TerminalLine.Kind.SYSTEM),
-        TerminalLine("Build 0.3.0-alpha · Android 9+ · ARM64", TerminalLine.Kind.SYSTEM),
-        TerminalLine("Install Debian to activate the Linux guest terminal.", TerminalLine.Kind.SYSTEM)
-    )) }
+    var lines by remember {
+        mutableStateOf(
+            listOf(
+                TerminalLine("GHOST OS // MOBILE WORKSTATION", TerminalLine.Kind.SYSTEM),
+                TerminalLine("Build 0.3.0-alpha · Android 9+ · ARM64", TerminalLine.Kind.SYSTEM),
+                TerminalLine("Install Debian to activate the Linux guest terminal."),
+            )
+        )
+    }
+
+    // The terminal emulator owns ANSI/VT parsing and emits encoded key input to the PTY.
+    // The session reference is read when callbacks run, so the emulator can survive
+    // Compose recompositions without being recreated.
+    val terminalEmulator = remember {
+        TerminalEmulatorFactory.create(
+            initialRows = 32,
+            initialCols = 100,
+            defaultForeground = Output,
+            defaultBackground = Panel,
+            onKeyboardInput = { bytes ->
+                scope.launch(Dispatchers.IO) { session?.write(bytes) }
+            },
+            onResize = { dimensions ->
+                scope.launch(Dispatchers.IO) {
+                    session?.resize(dimensions.rows, dimensions.columns)
+                }
+            },
+        )
+    }
 
     fun append(text: String, kind: TerminalLine.Kind = TerminalLine.Kind.OUTPUT) {
         lines = lines + TerminalLine(text, kind)
     }
 
-    fun runCommand() {
+    fun runBootstrapCommand() {
         val command = input
         if (command.isBlank()) return
         input = ""
-        val active = session
-        if (active != null) {
-            append("$ $command", TerminalLine.Kind.COMMAND)
-            scope.launch {
-                val result = withContext(Dispatchers.IO) { active.write(command + "\n") }
-                if (result < 0) append("Could not write to Linux PTY", TerminalLine.Kind.ERROR)
-            }
+        val result = router.execute(command)
+        lines = if (result.lines.any { it.text == "\u0000CLEAR\u0000" }) {
+            emptyList()
         } else {
-            val result = router.execute(command)
-            lines = if (result.lines.any { it.text == "\u0000CLEAR\u0000" }) emptyList()
-                else lines + TerminalLine("$ $command", TerminalLine.Kind.COMMAND) + result.lines
+            lines + TerminalLine("$ $command", TerminalLine.Kind.COMMAND) + result.lines
         }
     }
 
     LaunchedEffect(session?.id) {
         val active = session ?: return@LaunchedEffect
-        val buffer = ByteArray(4096)
+        val buffer = ByteArray(8192)
         while (true) {
             val count = withContext(Dispatchers.IO) { active.read(buffer) }
             if (count < 0) break
-            if (count > 0) append(String(buffer, 0, count, Charsets.UTF_8))
+            if (count > 0) terminalEmulator.writeInput(buffer, 0, count)
         }
         if (session?.id == active.id) {
             active.close()
@@ -90,8 +115,11 @@ fun GhostHomeScreen() {
         }
     }
 
-    DisposableEffect(runtime) {
-        onDispose { scope.launch { runtime.stop() } }
+    DisposableEffect(runtime, terminalEmulator) {
+        onDispose {
+            scope.launch(Dispatchers.IO) { runtime.stop() }
+            terminalEmulator.close()
+        }
     }
 
     Column(Modifier.fillMaxSize().background(Bg).padding(16.dp)) {
@@ -124,70 +152,145 @@ fun GhostHomeScreen() {
                         } catch (error: Exception) {
                             append("Install failed: ${error.message}", TerminalLine.Kind.ERROR)
                             runtimeStatus = runtime.status()
-                        } finally { busy = false }
+                        } finally {
+                            busy = false
+                        }
                     }
                 },
                 enabled = !busy && session == null && runtimeStatus == RuntimeStatus.NOT_INSTALLED,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) { Text(if (busy) "INSTALLING…" else "INSTALL DEBIAN") }
+
             Button(
                 onClick = {
                     scope.launch {
                         busy = true
                         try {
+                            terminalEmulator.clearScreen()
                             session = runtime.startSession()
                             runtimeStatus = runtime.status()
-                            append("Connected to Debian PTY", TerminalLine.Kind.SYSTEM)
+                            append("Connected to Debian PTY terminal", TerminalLine.Kind.SYSTEM)
                         } catch (error: Exception) {
                             append("Could not start Linux: ${error.message}", TerminalLine.Kind.ERROR)
-                        } finally { busy = false }
+                        } finally {
+                            busy = false
+                        }
                     }
                 },
                 enabled = !busy && session == null && runtimeStatus == RuntimeStatus.READY,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
             ) { Text("START LINUX") }
         }
+
         if (busy || progress.isNotBlank()) {
             Text(progress, color = Muted, fontSize = 10.sp, modifier = Modifier.padding(vertical = 4.dp))
         }
+
         if (session != null) {
-            TextButton(onClick = { scope.launch { runtime.stop(); session = null; runtimeStatus = runtime.status() } }) {
+            TextButton(
+                onClick = {
+                    scope.launch {
+                        runtime.stop()
+                        session = null
+                        runtimeStatus = runtime.status()
+                    }
+                },
+            ) {
                 Text("STOP LINUX SESSION", color = Color(0xFFFF8C82))
             }
         }
+
         Spacer(Modifier.height(8.dp))
-        Text(if (session == null) "BOOTSTRAP / SAFE COMMANDS" else "DEBIAN / PTY SESSION", color = Muted, fontSize = 11.sp, letterSpacing = 1.5.sp)
+        Text(
+            if (session == null) "BOOTSTRAP / SAFE COMMANDS" else "DEBIAN / INTERACTIVE TERMINAL",
+            color = Muted,
+            fontSize = 11.sp,
+            letterSpacing = 1.5.sp,
+        )
         Spacer(Modifier.height(8.dp))
-        Surface(Modifier.weight(1f).fillMaxWidth(), color = Panel, shape = RoundedCornerShape(14.dp)) {
-            LazyColumn(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                items(lines) { line ->
-                    val color = when (line.kind) {
-                        TerminalLine.Kind.COMMAND -> Green
-                        TerminalLine.Kind.ERROR -> Color(0xFFFF8C82)
-                        TerminalLine.Kind.SYSTEM -> Muted
-                        TerminalLine.Kind.OUTPUT -> Color(0xFFE1EAE4)
+
+        if (session != null) {
+            Terminal(
+                terminalEmulator = terminalEmulator,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp)),
+                backgroundColor = Panel,
+                foregroundColor = Output,
+                keyboardEnabled = true,
+                showSoftKeyboard = true,
+                initialFontSize = 12.sp,
+            )
+        } else {
+            Surface(
+                Modifier.weight(1f).fillMaxWidth(),
+                color = Panel,
+                shape = RoundedCornerShape(14.dp),
+            ) {
+                LazyColumn(
+                    Modifier.fillMaxSize().padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    items(lines) { line ->
+                        val color = when (line.kind) {
+                            TerminalLine.Kind.COMMAND -> Green
+                            TerminalLine.Kind.ERROR -> Color(0xFFFF8C82)
+                            TerminalLine.Kind.SYSTEM -> Muted
+                            TerminalLine.Kind.OUTPUT -> Output
+                        }
+                        Text(
+                            line.text,
+                            color = color,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp,
+                        )
                     }
-                    Text(line.text, color = color, fontFamily = FontFamily.Monospace, fontSize = 12.sp, lineHeight = 18.sp)
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Panel, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 12.dp, vertical = 13.dp),
+            ) {
+                Text("$", color = Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(9.dp))
+                androidx.compose.foundation.text.BasicTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = Color.White,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 13.sp,
+                    ),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Send,
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                        onSend = { runBootstrapCommand() },
+                    ),
+                )
+                TextButton(onClick = { runBootstrapCommand() }) {
+                    Text("RUN", color = Green, fontWeight = FontWeight.Bold)
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().background(Panel, RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 13.dp)) {
-            Text("$", color = Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.width(9.dp))
-            BasicTextField(
-                value = input,
-                onValueChange = { input = it },
-                modifier = Modifier.weight(1f),
-                singleLine = true,
-                textStyle = TextStyle(color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { runCommand() })
-            )
-            TextButton(onClick = { runCommand() }) { Text("RUN", color = Green, fontWeight = FontWeight.Bold) }
-        }
+
         Spacer(Modifier.height(10.dp))
-        Text(if (session == null) "PRIVATE APP STORAGE · NO ROOT · DEBIAN RUNTIME" else "ROOTLESS DEBIAN · PTY ACTIVE · APP SANDBOXED", color = Muted, fontSize = 9.sp, letterSpacing = 0.5.sp)
+        Text(
+            if (session == null) "PRIVATE APP STORAGE · NO ROOT · DEBIAN RUNTIME"
+            else "ROOTLESS DEBIAN · PTY ACTIVE · APP SANDBOXED",
+            color = Muted,
+            fontSize = 9.sp,
+            letterSpacing = 0.5.sp,
+        )
     }
 }
 
