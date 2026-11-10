@@ -39,3 +39,14 @@ Do not commit this absolute path to the shared repository: it is tied to one RV2
 ```
 
 A successful resource-processing step confirms AAPT2 is running; it does not by itself verify the native PRoot runtime or a complete APK build.
+
+## Debian OCI download diagnostics
+
+The PRoot source is a Git submodule, so Ghost-Os cannot directly commit edits to its upstream source repository. The helper script in this repository applies the detailed Rust error formatting locally to the submodule source. Run it from the Ghost-Os repository root after initializing the submodule:
+
+```bash
+git submodule update --init --recursive
+bash scripts/patch-pr-oci-diagnostics.sh
+```
+
+Then rebuild the app and retry Debian installation. This change exposes the underlying transport error chain for Docker Hub blob downloads; it is diagnostic only and does **not** itself fix a network, TLS, DNS, or registry failure.
