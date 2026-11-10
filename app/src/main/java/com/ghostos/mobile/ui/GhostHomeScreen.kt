@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ghostos.mobile.core.diagnostics.DiagnosticsStore
 import com.ghostos.mobile.core.runtime.Distribution
 import com.ghostos.mobile.core.runtime.GhostProotRuntime
 import com.ghostos.mobile.core.runtime.RuntimeSession
@@ -54,6 +55,8 @@ fun GhostHomeScreen() {
     var runtimeStatus by remember { mutableStateOf(runtime.status()) }
     var session by remember { mutableStateOf<RuntimeSession?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var showLogs by remember { mutableStateOf(false) }
+    var logText by remember { mutableStateOf(DiagnosticsStore.read(context)) }
     var progress by remember { mutableStateOf("") }
     var lines by remember {
         mutableStateOf(
@@ -90,12 +93,22 @@ fun GhostHomeScreen() {
         val command = input
         if (command.isBlank()) return
         input = ""
+        if (command.equals("logs", ignoreCase = true)) { showLogs = true; logText = DiagnosticsStore.read(context); return }
+        if (command.equals("clearlogs", ignoreCase = true)) { DiagnosticsStore.clear(context); logText = ""; append("Diagnostics log cleared", TerminalLine.Kind.SYSTEM); return }
+        if (command.equals("diagnostics", ignoreCase = true)) {
+            val report = "Android API ${android.os.Build.VERSION.SDK_INT}; ABI ${android.os.Build.SUPPORTED_ABIS.joinToString()}; app storage available ${context.filesDir.usableSpace / (1024 * 1024)} MB; runtime ${runtime.status()}"
+            DiagnosticsStore.append(context, report)
+            append(report, TerminalLine.Kind.SYSTEM)
+            return
+        }
         val result = router.execute(command)
         lines = if (result.lines.any { it.text == "\u0000CLEAR\u0000" }) {
             emptyList()
         } else {
             lines + TerminalLine("$ $command", TerminalLine.Kind.COMMAND) + result.lines
         }
+        DiagnosticsStore.append(context, "$ $command")
+        result.lines.forEach { DiagnosticsStore.append(context, it.text) }
     }
 
     LaunchedEffect(session?.id) {
@@ -155,12 +168,18 @@ fun GhostHomeScreen() {
                         busy = true
                         progress = "Starting Debian installation…"
                         try {
-                            runtime.installDistribution(Distribution.DEBIAN_STABLE) { _, message -> progress = message }
+                            runtime.installDistribution(Distribution.DEBIAN_STABLE) { percent, message ->
+                                progress = message
+                                DiagnosticsStore.append(context, "INSTALL progress=$percent: $message")
+                            }
                             runtimeStatus = runtime.status()
                             append("Debian stable is installed", TerminalLine.Kind.SYSTEM)
+                            DiagnosticsStore.append(context, "INSTALL success; runtime status=$runtimeStatus")
                         } catch (error: Exception) {
                             append("Install failed: ${error.message}", TerminalLine.Kind.ERROR)
+                            DiagnosticsStore.append(context, "INSTALL exception: ${error.stackTraceToString()}")
                             runtimeStatus = runtime.status()
+                            DiagnosticsStore.append(context, "INSTALL ended; runtime status=$runtimeStatus")
                         } finally {
                             busy = false
                         }
@@ -209,16 +228,35 @@ fun GhostHomeScreen() {
             }
         }
 
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            TextButton(onClick = { showLogs = !showLogs; logText = DiagnosticsStore.read(context) }) {
+                Text(if (showLogs) "CLOSE LOGS" else "VIEW LOGS", color = Green, fontWeight = FontWeight.Bold)
+            }
+        }
         Spacer(Modifier.height(8.dp))
         Text(
-            if (session == null) "BOOTSTRAP / SAFE COMMANDS" else "DEBIAN / INTERACTIVE TERMINAL",
+            if (showLogs) "GHOST OS / DIAGNOSTICS" else if (session == null) "BOOTSTRAP / SAFE COMMANDS" else "DEBIAN / INTERACTIVE TERMINAL",
             color = Muted,
             fontSize = 11.sp,
             letterSpacing = 1.5.sp,
         )
         Spacer(Modifier.height(8.dp))
 
-        if (session != null) {
+        if (showLogs) {
+            Surface(Modifier.weight(1f).fillMaxWidth(), color = Panel, shape = RoundedCornerShape(14.dp)) {
+                LazyColumn(Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    item {
+                        Text("APP-PRIVATE LOG · ${logText.lineSequence().count { it.isNotBlank() }} entries", color = Muted, fontSize = 10.sp)
+                    }
+                    item {
+                        TextButton(onClick = { DiagnosticsStore.clear(context); logText = "" }) { Text("CLEAR LOG", color = Color(0xFFFF8C82)) }
+                    }
+                    item {
+                        Text(logText.ifBlank { "No diagnostic entries yet. Run diagnostics or retry installation." }, color = Output, fontFamily = FontFamily.Monospace, fontSize = 10.sp, lineHeight = 15.sp)
+                    }
+                }
+            }
+        } else if (session != null) {
             Terminal(
                 terminalEmulator = terminalEmulator,
                 modifier = Modifier
