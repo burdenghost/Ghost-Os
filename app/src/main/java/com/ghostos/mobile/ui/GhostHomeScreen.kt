@@ -63,9 +63,6 @@ fun GhostHomeScreen() {
         )
     }
 
-    // The terminal emulator owns ANSI/VT parsing and emits encoded key input to the PTY.
-    // The session reference is read when callbacks run, so the emulator can survive
-    // Compose recompositions without being recreated.
     val terminalEmulator = remember {
         TerminalEmulatorFactory.create(
             initialRows = 32,
@@ -135,7 +132,6 @@ fun GhostHomeScreen() {
         Spacer(Modifier.height(14.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             StatusTile("LINUX", runtimeStatus.name)
-            StatusTile("AI", "PLANNED")
             StatusTile("SECURITY", "LOCKED")
         }
         Spacer(Modifier.height(10.dp))
