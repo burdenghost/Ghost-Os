@@ -2,26 +2,28 @@
 
 ## Milestone 0 — Modern Android bootstrap
 - [x] Native Android project skeleton and Compose dashboard
-- [x] Safe built-in terminal prototype
-- [x] Drop legacy Android support; set minimum Android 9 / API 28
-- [x] Successful on-device debug build reported by project owner
-- [x] Upgrade to AGP 9.5.0 / Gradle 9.6.0 / Kotlin 2.4.10 / JDK 17
-- [x] Import alpha source tree into this repository
-- [x] Pin Gradle 9.6.0 wrapper distribution
-- [ ] Add wrapper scripts/JAR and CI build
+- [x] Safe bootstrap command router
+- [x] Minimum Android 9 / API 28 and ARM64-only target
+- [x] Modern Android/Kotlin/Gradle toolchain aligned with upstream runtime
+- [x] Pin upstream PRoot engine as a Git submodule
+- [x] Include upstream engine, session, and terminal libraries as Gradle projects
+- [x] Add CI workflow for native runtime build and debug APK artifact
 
 ## Milestone 1 — Linux runtime foundation
-- [ ] Pin and integrate maintained ARM64 PRoot engine as a source dependency
-- [ ] Complete GPL/MIT license inventory and third-party notices
-- [ ] Add verified Debian rootfs manifest and downloader
-- [ ] Safe extraction, disk checks, install progress, cancellation, recovery
-- [ ] Runtime lifecycle and status persistence
-- [ ] Android 9+ device matrix, target-SDK 35 runtime tests, and 16 KB page-size validation
+- [x] Android host implementing the upstream `ProotHost` contract
+- [x] App-private PRoot prefix bootstrap and native executable links
+- [x] Debian stable install adapter using upstream `pr-cli` process runner
+- [x] PTY session adapter exposed through `LinuxRuntime`
+- [x] Dashboard install/start/stop actions connected to runtime adapter
+- [ ] Obtain first successful CI build with native PRoot binaries
+- [ ] Install Debian and verify guest commands on a real Android 9+ ARM64 device
+- [ ] Test `apt update`, DNS, process cancellation, PTY resize, Ctrl-C, and cleanup
+- [ ] Validate target-SDK 35 restrictions and 16 KB page-size support
 
 ## Milestone 2 — Interactive workstation
-- [ ] PTY-backed multi-session terminal
+- [ ] Multi-session lifecycle and persistent background sessions
 - [ ] Guest file browser and explicit shared-storage bridge
-- [ ] Package manager, repository trust and rollback
+- [ ] Package manager UI, repository trust and rollback
 - [ ] Editor, Git, SSH, Python and compiler toolchains
 - [ ] Backup, reset and update flows
 
@@ -41,5 +43,5 @@
 
 ## Milestone 5 — Release engineering
 - [ ] Signed release builds, SBOM and third-party notices
-- [ ] API 24 through current Android test matrix
+- [ ] Android 9+ device matrix and 16 KB page-size testing
 - [ ] Accessibility, localization, crash and performance testing
