@@ -13,7 +13,10 @@ import java.net.Inet6Address
 class GhostApplication : Application(), ProotHost {
     override val prefixDir: File get() = File(filesDir, "ghost-prefix")
     override val homeDir: File get() = File(filesDir, "ghost-home")
+    @get:JvmName("getProotPackageName")
     override val packageName: String get() = super.getPackageName()
+
+    @get:JvmName("getProotCacheDir")
     override val cacheDir: File get() = super.getCacheDir()
 
     override val dnsServers: List<String>
