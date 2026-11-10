@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ghost OS Tool Manifest",
+  "type": "object",
+  "required": ["id", "name", "category", "upstream", "license", "sourceIntegrity", "architectures", "runtimeDependencies", "capabilities", "authorizedUse"],
+  "properties": {
+    "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+    "name": {"type": "string"},
+    "category": {"enum": ["osint", "network", "web", "forensics", "development", "pentest"]},
+    "upstream": {"type": "string", "format": "uri"},
+    "license": {"type": "string"},
+    "sourceIntegrity": {"type": "string"},
+    "architectures": {"type": "array", "items": {"enum": ["aarch64", "armv7", "x86_64", "all"]}},
+    "runtimeDependencies": {"type": "array", "items": {"type": "string"}},
+    "capabilities": {"type": "array", "items": {"enum": ["network", "raw-socket", "root", "kernel", "usb-otg", "wifi-monitor", "storage"]}},
+    "authorizedUse": {"type": "string"},
+    "status": {"enum": ["planned", "review", "supported", "unsupported"]}
+  }
+}
