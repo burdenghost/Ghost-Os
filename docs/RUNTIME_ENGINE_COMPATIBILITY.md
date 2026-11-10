@@ -21,18 +21,18 @@ Do not lower upstream minimum SDK declarations as a cosmetic workaround. Android
 ## Android compatibility blockers
 
 - Both `proot-engine` and `session-core` currently declare `minSdk = 28`.
-- Upstream currently builds with `compileSdk = 37` and Java 17; Ghost OS has been moved to AGP 9.5.0, Gradle 9.6.0, Kotlin 2.4.10, JDK 17, compileSdk 37, and NDK 28.2.13676358. Integration still requires validating the upstream modules against this exact toolchain.
+- Upstream currently builds with `compileSdk = 37` and Java 17; Ghost OS has been moved to AGP 9.4.1, Gradle 9.8.2, Kotlin 2.4.21, JDK 17, compileSdk 37, and upstream NDK r27c. Integration still requires validating the upstream modules against this exact toolchain.
 - Upstream documents Android-specific W^X, SELinux, and seccomp behavior and a PROOT_LOADER mechanism. These behaviors must be tested in Ghost OS's own application process; command success under `run-as` is not sufficient evidence.
 - The engine is ARM64-focused. Ghost OS must detect unsupported ABIs and fail clearly rather than attempting to run incompatible binaries.
 
 ## Implementation path
 
 1. Keep Ghost OS's `LinuxRuntime` interface as the stable boundary between the UI and execution engine.
-2. Build a small host-side runtime contract and tests first: capability detection, rootfs state, install progress, session lifecycle, cancellation, PTY I/O, resize, exit status, and storage accounting.
-3. Use the upstream ARM64 engine as the primary runtime candidate, pin an immutable commit, and verify on Android 9+ devices.
-4. Treat the current `oonid/pr` engine as a possible API-28+ backend only after a pinned source import, license notices, dependency alignment, ABI packaging, and in-app process tests.
-5. Keep the product minimum at API 28. Gate unsupported ABIs and devices with explicit diagnostics; do not claim untested Android versions or hardware are supported.
-6. Pin an immutable upstream commit before importing code. Never track upstream `main` directly in a release build.
+2. Pin the upstream ARM64 engine at an immutable commit and initialize all nested vendor submodules.
+3. Build the upstream native PRoot, loader, and Rust `pr-cli` binaries from source; the GitHub Actions workflow and `scripts/build-runtime.sh` now define this build path.
+4. Include upstream engine/session/terminal libraries as Gradle projects and keep Ghost OS's own UI.
+5. Use the Ghost OS adapter to install Debian into app-private storage and expose a PTY-backed session.
+6. Validate the full build and runtime on Android 9+ ARM64 devices before calling the guest production-ready.
 
 ## Security constraints
 
