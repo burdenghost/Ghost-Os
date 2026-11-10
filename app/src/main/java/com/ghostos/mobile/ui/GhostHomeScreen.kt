@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import com.ghostos.mobile.R
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -121,9 +123,20 @@ fun GhostHomeScreen() {
 
     Column(Modifier.fillMaxSize().background(Bg).padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.weight(1f)) {
-                Text("GHOST OS", color = Green, fontSize = 23.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
-                Text("MOBILE WORKSTATION", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                androidx.compose.foundation.Image(
+                    painter = painterResource(R.drawable.ghost_logo),
+                    contentDescription = "Ghost OS logo",
+                    modifier = Modifier.size(42.dp),
+                )
+                Column {
+                    Text("GHOST OS", color = Green, fontSize = 23.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                    Text("MOBILE WORKSTATION", color = Muted, fontSize = 10.sp, letterSpacing = 2.sp)
+                }
             }
             Surface(color = Color(0xFF173426), shape = RoundedCornerShape(50)) {
                 Text("ALPHA", color = Green, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 11.sp, fontWeight = FontWeight.Bold)
